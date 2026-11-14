@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Así se ve SOUL.EXE</title>
+<style>
+:root{--bg:#f3f3f6;--fg:#17171c;--bt:#dcdce4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0c11;--fg:#eee;--bt:#25252f}}
+:root[data-theme="dark"]{--bg:#0c0c11;--fg:#eee;--bt:#25252f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:10px;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center;-webkit-touch-callout:none}
+h1{font-size:17px;margin:4px 0 10px}
+canvas{display:block;width:100%;max-width:800px;height:auto;margin:0 auto;background:#000;border-radius:6px}
+button{background:var(--bt);color:var(--fg);border:0;border-radius:12px;padding:12px 16px;font-size:18px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+button.on{outline:2px solid #ff8c00}
+.row{display:flex;gap:8px;justify-content:center;margin:10px 0}
+#pad{display:none;justify-content:space-around;align-items:center;max-width:480px;margin:8px auto}
+.dp{display:grid;grid-template:repeat(3,52px)/repeat(3,52px);gap:6px}
+.dp button{padding:0}
+.ab{display:flex;gap:14px}.ab button{width:70px;height:70px;border-radius:50%;font-weight:700}
+</style></head><body>
+<h1>Así se ve SOUL.EXE</h1>
+<canvas id="c" width="800" height="600"></canvas>
+<div class="row"><button id="bd">Ver demo</button><button id="bj">Jugar yo</button></div>
+<p id="info"></p>
+<div id="pad"><div class="dp"><button data-k="U" style="grid-area:1/2">▲</button><button data-k="L" style="grid-area:2/1">◀</button><button data-k="R" style="grid-area:2/3">▶</button><button data-k="D" style="grid-area:3/2">▼</button></div><div class="ab"><button data-k="X">X</button><button data-k="Z">Z</button></div></div>
+<script>
+const $=id=>document.getElementById(id),ctx=$('c').getContext('2d');
+const M='"Courier New",Consolas,"DejaVu Sans Mono",monospace',F='bold 22px '+M,FP='bold 18px '+M,FG='bold 72px '+M;
+const BL='#fff',RO='#f00',AM='#ffe600',NA='#ff8c00',VE='#00dc5a',CI='#00dcff',GR='#6e6e6e',N='NARRADOR',FI='FIRU';
+const CAJA=[40,265,720,175],ARENA=[250,265,300,175],DUR=7,DIRS={L:-1,U:-1,R:1,D:1};
+const HEART=[];for(let i=0;i<32;i++){const t=i*.2;HEART.push([16*Math.sin(t)**3,-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))])}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+/* ---- historia ---- */
+const PRO=[[N,'* Hace tiempo, la ciudad digital de PIXELIA vivía en paz. Cada casa, banco y escuela estaba en una sola red.'],
+[N,'* Una noche todo se apagó. Los programas guardianes desaparecieron... todos menos uno.'],
+[N,'* Tú. Un pequeño antivirus con forma de corazón: SOUL.EXE. Acabas de despertar.'],
+[FI,'¡Por fin despiertas! Soy FIRU, el último firewall de Pixelia. Alguien llamado ZERO tomó el control de la red.'],
+[FI,'Debes cruzar cuatro zonas. Cada amenaza usa un truco distinto... y todas pueden aprender.'],
+[FI,'No siempre hay que destruir lo que nos ataca. A veces basta con entenderlo. Usa ACTUAR con cabeza.']];
+const FIN={pacifista:[['ZERO','...Nadie me había escuchado así. Tenías razón: mi trabajo era avisar, no vengarme.'],[FI,'¡Zero! ¡Sabía que seguías ahí, amigo!'],['ZERO','Déjame arreglarlo. Conozco cada grieta de esta red... y sé cómo cerrarlas.'],[N,'* ZERO devuelve el control y se une a FIRU como guardián. Las luces de Pixelia vuelven a encenderse.'],[N,'* Aprendiste que la mejor defensa es entender, avisar y cuidar. Gracias por jugar.']],
+neutral:[['ZERO','Me perdonas... pero dejaste amenazas borradas por el camino.'],[FI,'La red se salvó, pero hay cosas que no volverán. Aprende de eso.'],[N,'* ZERO se queda como vigilante, a prueba. Pixelia vuelve a encenderse, con cicatrices.']],
+agresiva:[['ZERO','Entonces... así termina. Nadie sabrá nunca por qué lo hice.'],[FI,'No quería que acabara así...'],[N,'* La red vuelve a encenderse. Pero sin entender qué pasó, nadie cambia sus claves ni actualiza sus equipos.'],[N,'* Y en alguna parte, otro atacante ya está despertando.']]};
+const PF={pacifista:['RUTA PACIFISTA',VE,['Defendiste la red sin destruir nada.','ZERO ahora protege Pixelia contigo.']],neutral:['RUTA NEUTRAL',AM,['Salvaste Pixelia, pero borraste amenazas sin entenderlas.']],agresiva:['RUTA AGRESIVA',RO,['Ganaste por la fuerza... y nadie aprendió nada.']],derrota:['CONEXIÓN PERDIDA',RO,['Los atacantes ganaron esta vez.','No te rindas... ¡Reinicia el sistema!']]};
+const EN=[
+{n:'PHISHER',s:'@',c:'#5aaaff',hp:40,p:'lluvia',cap:'CAPÍTULO 1: EL BUZÓN',f:'¡Confirma tu clave aquí!',
+a:[[FI,'La primera zona es el BUZÓN. Alguien envía correos falsos a todo el mundo.'],['PHISHER','¡Hola, hola! ¿Sabías que tu cuenta caduca hoy? ¡Confirma tu clave aquí mismo!']],
+sv:[['PHISHER','Vaya... nadie me había explicado por qué estaba mal. Gracias. ZERO nos obligó a todos.']],
+d:[[FI,'Los correos falsos eran solo el principio. Sigue: la ZONA DE DESCARGAS está llena de programas disfrazados.']],
+q:[['Correo: «¡Tu banco necesita tu clave YA! Pulsa el enlace».',['Pulsar y escribir mi clave','Ignorarlo y entrar a la web oficial','Reenviarlo a mis amigos'],1,'Los bancos nunca piden claves por enlaces. Entra siempre desde la web oficial.'],
+['Mensaje: «¡Ganaste un premio! Descarga el archivo .zip».',['Descargarlo rápido','Responder con mis datos','Revisar el remitente y no abrir adjuntos'],2,'Premio sorpresa + urgencia = señal clásica de phishing.']]},
+{n:'TROYANO',s:'01',c:'#ff5a5a',hp:50,p:'disparo',cap:'CAPÍTULO 2: LA ZONA DE DESCARGAS',f:'Soy un regalo, ¡ábreme!',
+a:[['TROYANO','¡Psst! ¿Quieres un programa gratis? ¡Solo tienes que dejarme entrar!']],
+sv:[['TROYANO','Me hicieron parecer un regalo para que nadie desconfiara. Ya no quiero engañar a nadie.']],
+d:[[FI,'ZERO usa cada descuido: enlaces, programas piratas, claves débiles. Ahora, la BÓVEDA DE CLAVES.']],
+q:[['Un programa «crackeado» gratis pide permisos de administrador.',['Instalarlo igual','Desactivar el antivirus','Bajar programas solo de fuentes oficiales'],2,'El software pirata suele traer malware escondido.'],
+['Tu sistema avisa: hay actualizaciones de seguridad.',['Instalarlas cuanto antes','Posponerlas siempre','Quitar el aviso'],0,'Las actualizaciones tapan las grietas que usan los atacantes.']]},
+{n:'FUERZA BRUTA',s:'***',c:'#ffc828',hp:60,p:'muro',cap:'CAPÍTULO 3: LA BÓVEDA DE CLAVES',f:'¿123456? ¿password? ¿admin?',
+a:[['FUERZA BRUTA','Toc, toc, toc... ¿123456? ¿password? ¿admin? ¡Alguna puerta se abrirá!']],
+sv:[['FUERZA BRUTA','Probar claves era lo único que sabía hacer. Ahora sé que algunas nadie las adivina... ¡qué alivio!']],
+d:[[FI,'Cuidado: lo que viene cifra archivos y pide un rescate. Mantén siempre copias de seguridad.']],
+q:[['¿Qué contraseña resiste mejor un ataque?',['123456','Mascota2020','Lun4-Verde-Tren-Sube!'],2,'Largas, únicas y sin datos personales.'],
+['¿Qué protege tu cuenta además de la contraseña?',['Compartirla con un amigo','Verificación en dos pasos (2FA)','Usar la misma en todo'],1,'El 2FA frena al atacante aunque descubra tu clave.']]},
+{n:'RANSOMWARE',s:'$',c:'#ff6ec8',hp:70,p:'rescate',cap:'CAPÍTULO 4: LOS ARCHIVOS SECUESTRADOS',f:'Tus archivos son míos.',
+a:[['RANSOMWARE','Tus archivos ahora son míos. Paga el rescate... o nunca los volverás a ver.']],
+sv:[['RANSOMWARE','Solo quería que alguien me hiciera caso. Toma: te devuelvo todos los archivos.']],
+d:[[FI,'Esa es la entrada al CENTRO DE CONTROL. ZERO está ahí dentro... Hace años fue mi amigo.']],
+q:[['Tus archivos aparecen cifrados y piden un rescate.',['Pagar de inmediato','Desconectar el equipo y restaurar la copia','Reiniciar y esperar'],1,'Pagar no garantiza nada. Las copias de seguridad sí.'],
+['¿Qué regla sigue una buena copia de seguridad?',['Una sola copia en el mismo PC','Varias copias en lugares distintos','Copiar una vez al año'],1,'Regla 3-2-1: 3 copias, en 2 medios, y 1 fuera de casa.']]},
+{n:'ZERO',j:1,s:'0',c:'#c850ff',hp:90,p:'jefe',paso:34,cap:'CAPÍTULO FINAL: EL CENTRO DE CONTROL',f:'Nadie escuchó mis avisos.',
+a:[['ZERO','Así que tú eres el programa que despertó. Qué curioso: yo también fui un guardián.'],['ZERO','Me crearon para avisar de los fallos de Pixelia. Avisé mil veces. Nadie actualizó, nadie me escuchó.'],['ZERO','Así que decidí enseñarles... por las malas.'],[FI,'¡Zero, ya basta! ¡Pixelia no es tu enemiga!'],['ZERO','Entonces demuéstramelo, pequeño corazón. ¡Convénceme... o destrúyeme!']],
+sv:[],d:[],
+q:[['Una red Wi-Fi pública gratis pide tus datos bancarios.',['Entrar sin dudar','Evitar datos sensibles ahí (usar VPN)','Compartir la clave del Wi-Fi de casa'],1,'En redes abiertas otros pueden espiar tu tráfico.'],
+['Alguien te pide por teléfono tu código de verificación «para ayudarte».',['Dárselo si suena amable','Colgar: nadie legítimo lo pide','Dárselo solo a la mitad'],1,'Los códigos de verificación son personales. Nunca se comparten.'],
+['¿Quién es responsable de la seguridad?',['Solo el informático','Todos, cada día','Solo el antivirus'],1,'La seguridad es trabajo de equipo: pequeñas costumbres de todos.']]}];
+const CAST={FIRU:[NA,'#']};EN.forEach(e=>CAST[e.n]=[e.c,e.s]);
+
+/* ---- helpers de dibujo ---- */
+function T(s,x,y,c=BL,f=F,m=0){if(!s)return;ctx.font=f;ctx.fillStyle=c;ctx.textAlign=m?'center':'left';ctx.textBaseline=m?'middle':'top';ctx.fillText(s,x,y)}
+function R(x,y,w,h,c,l=0){if(l){ctx.strokeStyle=c;ctx.lineWidth=l;ctx.strokeRect(x+l/2,y+l/2,w-l,h-l)}else{ctx.fillStyle=c;ctx.fillRect(x,y,w,h)}}
+function med(x,y,w,h,f,c,b='#460000'){R(x,y,w,h,b);R(x,y,Math.floor(w*Math.max(0,Math.min(1,f))),h,c)}
+function heart(x,y,c=RO,e=.55){ctx.fillStyle=c;ctx.beginPath();HEART.forEach(([a,b],i)=>ctx[i?'lineTo':'moveTo'](x+a*e,y+b*e));ctx.fill()}
+function wrap(s,n){const o=[];let c='';for(const w of s.split(' ')){if(c&&(c+' '+w).length>n){o.push(c);c=w}else c=c?c+' '+w:w}if(c)o.push(c);return o}
+function rr(x,y,w,h,r){(ctx.roundRect||ctx.rect).call(ctx,x,y,w,h,r)}
+
+/* ---- estado y flujo (igual que soul_exe_historia.py) ---- */
+let J,demo=true,held={},ai={dx:0,dy:0},w=0;
+function nuevoJuego(){J={estado:'titulo',fin:'',cur:[...CAJA],tb:CAJA,rect:{x:40,y:265,w:720,h:175},txt:'',n:0,then:null,quien:null,cola:[],sel:0,sub:0,shake:0,inv:0,t:0,cd:0,px:0,py:0,cx:100,lado:1,bullets:[],frase:''}}
+function nueva(){Object.assign(J,{hp:30,maxhp:30,idx:0,kills:0,items:[['Antivirus',12,2],['Copia de seguridad',25,1]],sel:0,sub:0});preparar(PRO)}
+function preparar(pre=[]){const e=J.e=EN[J.idx];J.ehp=e.hp;J.seg=0;J.enojo=0;J.qi=0;escena([...pre,[N,'* '+e.cap],...e.a],aMenu)}
+function escena(l,f){J.cola=[...l];J.alT=f;sig()}
+function sig(){if(!J.cola.length)return J.alT();const[q,t]=J.cola.shift();say(t,sig,q)}
+function say(t,f,q=null){J.txt=t;J.n=0;J.then=f;J.quien=q;J.estado='mensaje';J.tb=CAJA}
+function flavor(){const n=J.e.n;if(J.seg>=100)return`* ${n} ya no quiere atacar. Usa PERDONAR.`;if(J.enojo)return`* ${n} está furioso. ¡Cuidado!`;return pick(['* Tu red está en peligro.','* Piensa antes de hacer clic.','* Hay código sospechoso en el aire.'])}
+function aMenu(){J.estado='menu';J.tb=CAJA;J.quien=null;J.txt=flavor();J.n=0}
+function reintentar(){const e=J.e;J.hp=J.maxhp;J.ehp=e.hp;J.seg=0;J.enojo=0;J.qi=0;aMenu()}
+function elegir(){J.sub=0;if(J.sel==0){J.estado='barra';J.cx=100}else if(J.sel==1)J.estado='actuar';else if(J.sel==2){if(J.items.length)J.estado='objeto';else say('* No te quedan objetos.',aMenu)}else if(J.seg>=100)ganar(0);else say(`* ${J.e.n} aún no se siente seguro. Usa ACTUAR primero.`,ataque)}
+function golpear(){const d=Math.max(2,Math.round(30*(1-Math.abs(J.cx-400)/300)));J.ehp-=d;J.shake=.5;if(J.ehp<=0)ganar(1);else say(`* Tu escaneo hace ${d} de daño a ${J.e.n}.`,ataque)}
+function responder(){const q=J.e.q,[,,bien,ex]=q[J.qi%q.length],p=J.e.paso||50;J.qi++;if(J.sub==bien){J.seg=Math.min(100,J.seg+p);say(`¡Correcto! ${ex} (SEGURIDAD +${p}%)`,ataque)}else{J.enojo=Math.min(3,J.enojo+1);say(`¡Incorrecto! ${ex}`,ataque)}}
+function usar(){const it=J.items[J.sub],c=Math.min(it[1],J.maxhp-J.hp);J.hp+=c;if(--it[2]==0)J.items.splice(J.sub,1);say(`* Usas ${it[0]}. Recuperas ${c} HP.`,ataque)}
+function ganar(m){const e=J.e,n=e.n;if(m)J.kills++;if(e.j){const r=m?'agresiva':J.kills?'neutral':'pacifista';return escena(FIN[r],()=>{J.estado='fin';J.fin=r})}
+J.hp=J.maxhp;const it=J.items.find(i=>i[0]=='Antivirus');if(it)it[2]++;else J.items.push(['Antivirus',12,1]);
+escena([[N,m?`* Borraste a ${n} sin entender cómo detenerlo.`:`* ¡${n} fue neutralizado sin violencia!`],...(m?[]:e.sv),...e.d,[N,'* PUNTO DE CONTROL: tu HP se restaura y ganas un Antivirus.']],()=>{J.idx++;preparar()})}
+
+/* ---- ataque enemigo ---- */
+function ataque(){J.estado='esquiva';J.tb=ARENA;J.quien=null;J.bullets=[];J.t=0;J.cd=.7;J.inv=0;J.lado=pick([-1,1]);J.frase=J.e.f;J.px=ARENA[0]+ARENA[2]/2;J.py=ARENA[1]+ARENA[3]/2}
+function crear(){const[x0,y0,w,h]=ARENA,v=1+.2*J.enojo,B=J.bullets;let p=J.e.p;if(p=='jefe')p=pick(['lluvia','disparo','muro','rescate']);
+if(p=='lluvia'){for(let i=0;i<2;i++)B.push({x:x0+10+Math.random()*(w-20),y:y0,vx:0,vy:150*v,ch:'@'});J.cd=.35/v}
+else if(p=='disparo'){const a=Math.atan2(J.py-y0,J.px-(x0+w/2));for(const d of[-.4,0,.4])B.push({x:x0+w/2,y:y0,vx:Math.cos(a+d)*160*v,vy:Math.sin(a+d)*160*v,ch:pick(['0','1'])});J.cd=1/v}
+else if(p=='rescate'){const l=pick([-1,1]);for(let i=0;i<2;i++)B.push({x:l==1?x0:x0+w,y:y0+10+Math.random()*(h-20),vx:l*170*v,vy:0,ch:'$'});J.cd=.5/v}
+else{const g=Math.floor(Math.random()*6);for(let i=0;i<7;i++)if(i!=g&&i!=g+1)B.push({x:J.lado==1?x0:x0+w,y:y0+h/7*(i+.5),vx:J.lado*130*v,vy:0,ch:'*'});J.cd=1.6/v}}
+function esquivar(dt){
+let dx=demo?ai.dx:(held.R?1:0)-(held.L?1:0),dy=demo?ai.dy:(held.D?1:0)-(held.U?1:0);if(dx&&dy){dx*=.707;dy*=.707}
+const r=J.rect;J.px=Math.max(r.x+14,Math.min(r.x+r.w-14,J.px+dx*190*dt));J.py=Math.max(r.y+14,Math.min(r.y+r.h-14,J.py+dy*190*dt));
+J.t+=dt;J.cd-=dt;J.inv-=dt;if(J.cd<=0&&J.t<DUR-1.5)crear();
+for(const b of J.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;if(J.inv<=0&&Math.hypot(b.x-J.px,b.y-J.py)<11){J.hp=Math.max(0,J.hp-4-J.enojo);J.inv=1}}
+J.bullets=J.bullets.filter(b=>b.x>ARENA[0]-40&&b.x<ARENA[0]+ARENA[2]+40&&b.y>ARENA[1]-40&&b.y<ARENA[1]+ARENA[3]+40);
+if(J.hp<=0){J.estado='fin';J.fin='derrota'}else if(J.t>=DUR)aMenu()}
+
+/* ---- entrada y actualización ---- */
+function tecla(k){const ok=k=='Z',atras=k=='X',d=DIRS[k]||0,s=J.estado;
+if(s=='titulo'){if(ok)nueva()}
+else if(s=='fin'){if(ok){if(J.fin=='derrota')reintentar();else nueva()}}
+else if(s=='mensaje'){if(ok&&J.n<J.txt.length)J.n=J.txt.length;else if(ok)J.then()}
+else if(s=='menu'){J.sel=(J.sel+d+4)%4;if(ok)elegir()}
+else if(s=='barra'){if(ok)golpear();else if(atras)aMenu()}
+else if(s=='actuar'){J.sub=(J.sub+d+3)%3;if(ok)responder();else if(atras)aMenu()}
+else if(s=='objeto'){J.sub=(J.sub+d+J.items.length)%J.items.length;if(ok)usar();else if(atras)aMenu()}}
+function actualizar(dt){for(let i=0;i<4;i++)J.cur[i]+=(J.tb[i]-J.cur[i])*Math.min(1,dt*14);const c=J.cur.map(Math.round);J.rect={x:c[0],y:c[1],w:c[2],h:c[3]};J.shake=Math.max(0,J.shake-dt);
+const s=J.estado;if((s=='menu'||s=='mensaje')&&J.n<J.txt.length)J.n=Math.min(J.txt.length,J.n+40*dt);
+else if(s=='barra'){J.cx+=620*dt;if(J.cx>700)say('* Tu escaneo falló...',ataque)}
+else if(s=='esquiva')esquivar(dt)}
+
+/* ---- dibujo ---- */
+function mon(cx,cy,c,s,o){ctx.strokeStyle=c;ctx.lineWidth=6;ctx.beginPath();rr(cx-87,cy-67,174,134,13);ctx.stroke();ctx.fillStyle=o;for(const dx of[-40,40]){ctx.beginPath();ctx.arc(cx+dx,cy-35,10,0,7);ctx.fill()}T(s,cx,cy+20,c,FG,1)}
+function bob(){return 135+Math.floor(Math.sin(performance.now()/400)*6)}
+function escr(dy=0){let n=Math.floor(J.n),y=J.rect.y+18+dy;for(const l of wrap(J.txt,48)){T(l.slice(0,Math.max(0,n)),J.rect.x+22,y);n-=l.length+1;y+=28}}
+function ind(){if(J.estado=='mensaje'&&J.n>=J.txt.length&&Math.floor(performance.now()/400)%2)T('v',J.rect.x+J.rect.w-38,J.rect.y+J.rect.h-34,GR)}
+function hud(){const e=J.e;T(e.n,20,18);T('HP',20,54,GR,FP);med(60,56,150,14,J.ehp/e.hp,VE);T('SEG',20,80,GR,FP);med(60,82,150,14,J.seg/100,CI,'#00323c');
+T(`AMENAZA ${J.idx+1}/${EN.length}`,680,28,GR,FP,1);T('SOUL.EXE  LV 1',40,455,BL,FP);T('HP',300,455,BL,FP);med(335,455,J.maxhp*3,20,J.hp/J.maxhp,AM,'#f00');T(`${J.hp}/${J.maxhp}`,345+J.maxhp*3,455,BL,FP)}
+function titulo(){T('SOUL.EXE',400,150,RO,FG,1);T('Salva la ciudad digital de PIXELIA',400,252,GR,FP,1);heart(400,320,RO,1.6);T('Flechas/WASD: mover   Z/Enter: aceptar   X: volver   Esc: salir',400,400,GR,FP,1);T('Pulsa Z para empezar',400,470,AM,F,1)}
+function pfin(){const[t,c,l0]=PF[J.fin],l=J.fin=='derrota'?l0:[...l0,'','Recuerda: duda de los enlaces, no instales software pirata,','usa claves largas con verificación en dos pasos','y mantén copias de seguridad.'];
+T(t,400,120,c,FG,1);l.forEach((s,i)=>T(s,400,230+i*30,BL,FP,1));T('Pulsa Z para '+(J.fin=='derrota'?'reintentar el capítulo':'jugar de nuevo'),400,500,AM,F,1)}
+function dibujar(){ctx.fillStyle='#000';ctx.fillRect(0,0,800,600);
+if(J.estado=='titulo')return titulo();if(J.estado=='fin')return pfin();
+const r=J.rect,s=J.estado;
+if(s=='mensaje'&&J.quien){const q=J.quien;if(q!=N){const[c,sy]=CAST[q];mon(400,bob(),c,sy,BL);T(q,r.x+22,r.y+12,c,FP)}escr(q==N?0:26);R(r.x,r.y,r.w,r.h,BL,4);return ind()}
+const e=J.e;mon(400+(J.shake>0?Math.floor(Math.random()*13)-6:0),bob(),e.c,e.s,J.seg>=100?VE:J.enojo?RO:BL);hud();
+if(s=='menu'||s=='mensaje')escr();
+else if(s=='barra'){T('Pulsa Z cuando el cursor esté en la zona amarilla',r.x+r.w/2,r.y+30,AM,FP,1);R(100,330,600,50,'#3c3c3c');R(250,330,300,50,VE);R(370,330,60,50,AM);R(Math.floor(J.cx)-3,318,6,74,BL)}
+else if(s=='actuar'){const[q,ops]=e.q[J.qi%e.q.length];let y=r.y+14;for(const l of wrap(q,60)){T(l,r.x+22,y,AM,FP);y+=22}ops.forEach((o,i)=>{T(o,r.x+62,y+8+i*28);if(i==J.sub)heart(r.x+40,y+20+i*28)})}
+else if(s=='objeto')J.items.forEach(([n,c,k],i)=>{T(`${n} x${k} (+${c} HP)`,r.x+62,r.y+20+i*32);if(i==J.sub)heart(r.x+40,r.y+32+i*32)});
+else{ctx.save();ctx.beginPath();ctx.rect(r.x,r.y,r.w,r.h);ctx.clip();for(const b of J.bullets)T(b.ch,b.x,b.y,e.c,F,1);ctx.restore();if(J.inv<=0||Math.floor(J.inv*12)%2==0)heart(J.px,J.py);
+if(J.t<2.2){ctx.fillStyle=BL;ctx.beginPath();rr(520,70,250,80,10);ctx.fill();wrap(J.frase,22).forEach((l,i)=>T(l,532,80+i*22,'#000',FP))}}
+R(r.x,r.y,r.w,r.h,BL,4);
+['ATACAR','ACTUAR','OBJETO','PERDONAR'].forEach((n,i)=>{const x=40+i*185,col=i==J.sel&&['menu','barra','actuar','objeto'].includes(s)?AM:NA;R(x,500,170,52,col,3);T(n,x+100,526,col,F,1)});
+if(s=='menu')heart(64+J.sel*185,526);ind()}
+
+/* ---- demo automática (un bot que juega solo) ---- */
+function ia(){const r=J.rect,l=r.x+14,rg=r.x+r.w-14,tp=r.y+14,bt=r.y+r.h-14;let best={dx:0,dy:0},bs=-1e9;
+for(const[dx,dy]of[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){let m=60,x=J.px,y=J.py;
+for(const t of[.15,.3,.45,.6,.8,1,1.2]){x=Math.max(l,Math.min(rg,J.px+dx*190*t));y=Math.max(tp,Math.min(bt,J.py+dy*190*t));for(const b of J.bullets)m=Math.min(m,Math.hypot(b.x+b.vx*t-x,b.y+b.vy*t-y))}
+const sc=m-Math.hypot(x-400,y-352)*.05;if(sc>bs){bs=sc;best={dx,dy}}}return best}
+function bot(dt){const s=J.estado;ai={dx:0,dy:0};
+if(s=='esquiva'){ai=ia();return}
+if(s=='barra'){if(Math.abs(J.cx-400)<16)tecla('Z');return}
+w=(s=='mensaje'&&J.n<J.txt.length)?0:w+dt;
+if(w<({titulo:2,fin:4,mensaje:1.6,actuar:1.4}[s]||.7))return;w=0;
+if(s=='menu'){const q=J.seg>=100?3:J.hp<=12&&J.items.length?2:J.idx==1&&J.ehp==J.e.hp?0:1;tecla(J.sel==q?'Z':'R')}
+else if(s=='actuar')tecla(J.sub==J.e.q[J.qi%J.e.q.length][2]?'Z':'D');
+else tecla('Z')}
+
+/* ---- controles y bucle ---- */
+function press(k){held[k]=1;tecla(k)}
+const KM={ArrowLeft:'L',a:'L',ArrowRight:'R',d:'R',ArrowUp:'U',w:'U',ArrowDown:'D',s:'D',z:'Z',Enter:'Z',x:'X'};
+const kk=e=>KM[e.key.length==1?e.key.toLowerCase():e.key];
+addEventListener('keydown',e=>{const k=kk(e);if(k&&!demo){e.preventDefault();if(!e.repeat)press(k)}});
+addEventListener('keyup',e=>{const k=kk(e);if(k)held[k]=0});
+document.querySelectorAll('[data-k]').forEach(b=>{const k=b.dataset.k;b.addEventListener('pointerdown',e=>{e.preventDefault();if(!demo)press(k)});['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,()=>held[k]=0))});
+function modo(d){demo=d;nuevoJuego();held={};w=0;$('bd').classList.toggle('on',d);$('bj').classList.toggle('on',!d);$('pad').style.display=d?'none':'flex';
+$('info').textContent=d?'La demo se juega sola: así se ve el código en acción.':'Flechas o WASD, Z para aceptar, X para volver. También puedes usar los botones.'}
+$('bd').onclick=()=>modo(true);$('bj').onclick=()=>modo(false);
+let last=performance.now();
+function loop(t){const dt=Math.min((t-last)/1000,.05);last=t;if(demo)bot(dt);actualizar(dt);dibujar();requestAnimationFrame(loop)}
+modo(true);requestAnimationFrame(loop);
+</script></body></html>
